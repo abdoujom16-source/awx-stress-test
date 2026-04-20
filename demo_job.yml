@@ -13,12 +13,15 @@
 
     - name: Execute PatrickMN CPU Burn (30 seconds)
       when: stress_type == 'cpu'
-      # The timeout command kills cpuburn after 30 seconds. 
-      # ignore_errors prevents Ansible from marking the job as "Failed" when timeout kills it.
       ansible.builtin.command: timeout 30s cpuburn
       ignore_errors: true
       
-    - name: Execute Memory Hog (100Mi for 30 seconds)
+    - name: Execute Python Memory Hog (100Mi for 30 seconds)
       when: stress_type == 'memory'
-      # memhog syntax: <size> <cmd> (use sleep to keep the memory allocated for 30s)
-      ansible.builtin.command: memhog 100m sleep 30
+      ansible.builtin.shell: |
+        python3 -c '
+        import time
+        # Allocates exactly 100MB of memory and holds it for 30 seconds
+        dummy_data = bytearray(100 * 1024 * 1024)
+        time.sleep(30)
+        '
