@@ -1,0 +1,24 @@
+---
+- name: AWX Load Test - Micro Benchmark Job
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Randomly choose between CPU and Memory stress
+      ansible.builtin.set_fact:
+        stress_type: "{{ ['cpu', 'memory'] | random }}"
+
+    - name: Log the chosen stress type
+      ansible.builtin.debug:
+        msg: "Starting 30-second benchmark. Type: {{ stress_type | upper }}"
+
+    - name: Execute PatrickMN CPU Burn (30 seconds)
+      when: stress_type == 'cpu'
+      # The timeout command kills cpuburn after 30 seconds. 
+      # ignore_errors prevents Ansible from marking the job as "Failed" when timeout kills it.
+      ansible.builtin.command: timeout 30s cpuburn
+      ignore_errors: true
+      
+    - name: Execute Memory Hog (100Mi for 30 seconds)
+      when: stress_type == 'memory'
+      # memhog syntax: <size> <cmd> (use sleep to keep the memory allocated for 30s)
+      ansible.builtin.command: memhog 100m sleep 30
