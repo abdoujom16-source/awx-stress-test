@@ -1,25 +1,28 @@
 ---
-- name: Iteration 8 - Chaotic Starvation Test
+- name: Iteration 9 - Realistic Production Chaos
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Roll the dice for execution time and memory load
+    - name: Roll the dice for realistic execution time and memory
       set_fact:
-        # Random execution time between 30 seconds and 300 seconds (5 minutes)
+        # Random execution time between 30s and 300s (5 minutes)
         exec_time: "{{ 300 | random(start=30, step=15) }}"
         
-        # Random memory allocation between 256 MB and 1024 MB (1 GB)
-        mem_load: "{{ 1024 | random(start=256, step=256) }}"
+        # Realistic memory load: 128MB to 512MB
+        mem_load: "{{ 512 | random(start=128, step=64) }}"
 
-    - name: Log the randomized parameters for this specific job
+    - name: Log the randomized parameters
       debug:
-        msg: "INITIATING CHAOS: Job will run for {{ exec_time }} seconds consuming {{ mem_load }}MB of RAM."
+        msg: "REALISTIC CHAOS: Job will hold state for {{ exec_time }} seconds consuming {{ mem_load }}MB of RAM."
 
-    - name: Execute CPU Burn and Memory Hog simultaneously
+    - name: Simulate Ansible I/O Wait (Sleep) and Memory Hog
       shell: |
-        /usr/local/bin/cpuburn {{ exec_time }} &
+        # Hold memory in the background
         python3 /usr/local/bin/memhog.py {{ mem_load }} {{ exec_time }} &
+        
+        # Simulate waiting for remote hosts to execute tasks
+        sleep {{ exec_time }}
+        
         wait
-      # Set async slightly higher than our max random time to prevent Ansible timeouts
       async: 330 
       poll: 10
