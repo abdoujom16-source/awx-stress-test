@@ -1,28 +1,36 @@
 ---
-- name: Iteration 9 - Realistic Production Chaos
+- name: Iteration 10 - Realistic Production Chaos (Fact Parsing & I/O Wait)
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Roll the dice for realistic execution time and memory
+    - name: Roll the dice for realistic execution parameters
       set_fact:
-        # Random execution time between 30s and 300s (5 minutes)
+        # Random execution time (I/O wait) between 30s and 300s
         exec_time: "{{ 300 | random(start=30, step=15) }}"
         
         # Realistic memory load: 128MB to 512MB
         mem_load: "{{ 512 | random(start=128, step=64) }}"
 
+        # Random JSON payload size to simulate fact parsing (CPU spike)
+        fact_weight: "{{ 500 | random(start=100, step=50) }}"
+
     - name: Log the randomized parameters
       debug:
-        msg: "REALISTIC CHAOS: Job will hold state for {{ exec_time }} seconds consuming {{ mem_load }}MB of RAM."
+        msg: "REALISTIC CHAOS: Job will sleep for {{ exec_time }}s, use {{ mem_load }}MB RAM, and parse {{ fact_weight }}K JSON records."
 
-    - name: Simulate Ansible I/O Wait (Sleep) and Memory Hog
+    - name: Simulate Fact Parsing (CPU), Memory Hog (RAM), and SSH Wait (I/O)
       shell: |
-        # Hold memory in the background
+        # 1. Allocate and hold memory in the background
         python3 /usr/local/bin/memhog.py {{ mem_load }} {{ exec_time }} &
         
-        # Simulate waiting for remote hosts to execute tasks
+        # 2. Simulate CPU Burst: Heavy JSON serialization/deserialization
+        # This perfectly mimics gathering and filtering massive host facts at the start of a playbook
+        python3 -c "import json; data = [{'id': i, 'val': 'ansible_fact_data' * 50} for i in range({{ fact_weight }} * 1000)]; json.loads(json.dumps(data))" &
+        
+        # 3. Simulate I/O Wait: Waiting for remote execution to complete over SSH/WinRM
         sleep {{ exec_time }}
         
         wait
+      # Async must be slightly longer than our maximum possible sleep time
       async: 330 
       poll: 10
