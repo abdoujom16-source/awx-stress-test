@@ -1,27 +1,25 @@
 ---
-- name: AWX Load Test - Micro Benchmark Job
+- name: Iteration 8 - Chaotic Starvation Test
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Randomly choose between CPU and Memory stress
-      ansible.builtin.set_fact:
-        stress_type: "{{ ['cpu', 'memory'] | random }}"
+    - name: Roll the dice for execution time and memory load
+      set_fact:
+        # Random execution time between 30 seconds and 300 seconds (5 minutes)
+        exec_time: "{{ 300 | random(start=30, step=15) }}"
+        
+        # Random memory allocation between 256 MB and 1024 MB (1 GB)
+        mem_load: "{{ 1024 | random(start=256, step=256) }}"
 
-    - name: Log the chosen stress type
-      ansible.builtin.debug:
-        msg: "Starting 30-second benchmark. Type: {{ stress_type | upper }}"
+    - name: Log the randomized parameters for this specific job
+      debug:
+        msg: "INITIATING CHAOS: Job will run for {{ exec_time }} seconds consuming {{ mem_load }}MB of RAM."
 
-    - name: Execute PatrickMN CPU Burn (30 seconds)
-      when: stress_type == 'cpu'
-      ansible.builtin.command: timeout 30s cpuburn
-      ignore_errors: true
-      
-    - name: Execute Python Memory Hog (100Mi for 30 seconds)
-      when: stress_type == 'memory'
-      ansible.builtin.shell: |
-        python3 -c '
-        import time
-        # Allocates exactly 100MB of memory and holds it for 30 seconds
-        dummy_data = bytearray(100 * 1024 * 1024)
-        time.sleep(30)
-        '
+    - name: Execute CPU Burn and Memory Hog simultaneously
+      shell: |
+        /usr/local/bin/cpuburn {{ exec_time }} &
+        python3 /usr/local/bin/memhog.py {{ mem_load }} {{ exec_time }} &
+        wait
+      # Set async slightly higher than our max random time to prevent Ansible timeouts
+      async: 330 
+      poll: 10
